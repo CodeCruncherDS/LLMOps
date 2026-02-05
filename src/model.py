@@ -15,11 +15,18 @@ from typing import Any, Callable, Optional, Union
 import numpy as np
 import torch
 from datasets import Dataset, DatasetDict
-from transformers import (AutoConfig, AutoModelForCausalLM,
-                          AutoModelForSequenceClassification, AutoTokenizer,
-                          DataCollatorWithPadding, EarlyStoppingCallback,
-                          PreTrainedModel, PreTrainedTokenizer, Trainer,
-                          TrainingArguments)
+from transformers import (
+    AutoConfig,
+    AutoModelForCausalLM,
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+    DataCollatorWithPadding,
+    EarlyStoppingCallback,
+    PreTrainedModel,
+    PreTrainedTokenizer,
+    Trainer,
+    TrainingArguments,
+)
 from transformers.trainer_callback import TrainerCallback
 
 from src.config import settings
@@ -285,8 +292,12 @@ class LLMFineTuner:
         Returns:
             Dictionary of metrics.
         """
-        from sklearn.metrics import (accuracy_score, f1_score, precision_score,
-                                     recall_score)
+        from sklearn.metrics import (
+            accuracy_score,
+            f1_score,
+            precision_score,
+            recall_score,
+        )
 
         predictions, labels = eval_pred
 
