@@ -5,6 +5,8 @@ Centralized configuration using Pydantic Settings with environment variable supp
 Supports development, staging, and production environments.
 """
 
+from __future__ import annotations
+
 import os
 from enum import Enum
 from functools import lru_cache

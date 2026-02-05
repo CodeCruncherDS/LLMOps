@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Model Inference Module
 
 Handles model loading with caching, batch and single inference,
@@ -127,6 +129,7 @@ class LLMInference:
     def _load_model(self) -> None:
         """Load model and tokenizer from disk."""
         model_path = Path(self.model_path)
+        model_source = None  # Will store the actual source to load from
 
         # Try to find the latest version if path is a directory with versions
         if model_path.exists() and model_path.is_dir():
@@ -137,22 +140,28 @@ class LLMInference:
             if version_dirs:
                 # Sort and get latest
                 latest = sorted(version_dirs, reverse=True)[0]
-                model_path = latest
-                self._model_version = latest.name
+                # Check if valid model exists in version dir
+                if (latest / "config.json").exists():
+                    model_source = latest
+                    self._model_version = latest.name
+            # Check if config.json exists directly in model_path
+            elif (model_path / "config.json").exists():
+                model_source = model_path
+                self._model_version = settings.model.model_version
 
-        # If model doesn't exist at path, try to load base model
-        if not model_path.exists():
-            logger.warning(
-                f"Model not found at {model_path}, loading base model: "
-                f"{settings.model.base_model_name}"
+        # If no valid model found at path, use base model from HuggingFace
+        if model_source is None:
+            logger.info(
+                f"No fine-tuned model found at {model_path}, "
+                f"loading base model: {settings.model.base_model_name}"
             )
-            model_path = settings.model.base_model_name
+            model_source = settings.model.base_model_name
             self._model_version = "base"
 
-        logger.info(f"Loading model from: {model_path}")
+        logger.info(f"Loading model from: {model_source}")
 
         try:
-            self._tokenizer = AutoTokenizer.from_pretrained(model_path)
+            self._tokenizer = AutoTokenizer.from_pretrained(model_source)
 
             # Set padding token if not present
             if self._tokenizer.pad_token is None:
@@ -160,10 +169,10 @@ class LLMInference:
 
             if self.task_type == "classification":
                 self._model = AutoModelForSequenceClassification.from_pretrained(
-                    model_path
+                    model_source
                 )
             else:
-                self._model = AutoModelForCausalLM.from_pretrained(model_path)
+                self._model = AutoModelForCausalLM.from_pretrained(model_source)
 
             # Set pad token id in model config
             if self._model.config.pad_token_id is None:

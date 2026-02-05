@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Logging and Monitoring Module
 
 Provides structured logging, prediction monitoring, latency tracking,

@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 FastAPI Web Service Module
 
 Provides REST API endpoints for model inference, health checks,
