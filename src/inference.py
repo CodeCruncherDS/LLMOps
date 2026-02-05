@@ -13,14 +13,9 @@ from typing import Any, Optional, Union
 
 import torch
 from pydantic import BaseModel, Field, field_validator
-from transformers import (
-    AutoModelForCausalLM,
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-    PreTrainedModel,
-    PreTrainedTokenizer,
-    pipeline,
-)
+from transformers import (AutoModelForCausalLM,
+                          AutoModelForSequenceClassification, AutoTokenizer,
+                          PreTrainedModel, PreTrainedTokenizer, pipeline)
 
 from src.config import settings
 from src.monitor import PredictionMonitor
