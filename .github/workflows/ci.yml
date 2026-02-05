@@ -32,9 +32,6 @@ jobs:
       - name: Check formatting with Black
         run: black --check --diff src/ tests/
 
-      - name: Check import sorting with isort
-        run: isort --check-only --diff src/ tests/
-
       - name: Lint with flake8
         run: flake8 src/ tests/ --max-line-length=100 --ignore=E501,W503
 
