@@ -40,35 +40,34 @@ health_checker: Optional[HealthChecker] = None
 # Request/Response Models
 class PredictRequest(BaseModel):
     """Request model for prediction endpoint."""
-    
+
     text: str = Field(
         ...,
         min_length=1,
         max_length=10000,
         description="Input text for prediction",
-        json_schema_extra={"example": "This is a sample text for classification."}
+        json_schema_extra={"example": "This is a sample text for classification."},
     )
     return_all_scores: bool = Field(
-        default=False,
-        description="Return scores for all classes (classification only)"
+        default=False, description="Return scores for all classes (classification only)"
     )
     max_new_tokens: Optional[int] = Field(
         default=None,
         ge=1,
         le=4096,
-        description="Maximum new tokens to generate (generation only)"
+        description="Maximum new tokens to generate (generation only)",
     )
     temperature: Optional[float] = Field(
         default=None,
         ge=0.0,
         le=2.0,
-        description="Sampling temperature (generation only)"
+        description="Sampling temperature (generation only)",
     )
 
 
 class PredictResponse(BaseModel):
     """Response model for prediction endpoint."""
-    
+
     input_text: str
     output: Any
     model_version: str
@@ -78,19 +77,19 @@ class PredictResponse(BaseModel):
 
 class BatchPredictRequest(BaseModel):
     """Request model for batch prediction endpoint."""
-    
+
     texts: list[str] = Field(
         ...,
         min_length=1,
         max_length=100,
-        description="List of texts for batch prediction"
+        description="List of texts for batch prediction",
     )
     return_all_scores: bool = Field(default=False)
 
 
 class BatchPredictResponse(BaseModel):
     """Response model for batch prediction endpoint."""
-    
+
     predictions: list[PredictResponse]
     total_count: int
     successful_count: int
@@ -99,7 +98,7 @@ class BatchPredictResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     """Response model for health check endpoint."""
-    
+
     status: str
     timestamp: str
     version: str
@@ -109,7 +108,7 @@ class HealthResponse(BaseModel):
 
 class ModelInfoResponse(BaseModel):
     """Response model for model info endpoint."""
-    
+
     model_version: str
     model_path: str
     task_type: str
@@ -120,7 +119,7 @@ class ModelInfoResponse(BaseModel):
 
 class ModelVersionsResponse(BaseModel):
     """Response model for model versions endpoint."""
-    
+
     versions: list[str]
     latest_version: Optional[str]
     metadata: dict[str, Any]
@@ -128,7 +127,7 @@ class ModelVersionsResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     """Standard error response model."""
-    
+
     error: str
     detail: Optional[str] = None
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
@@ -138,41 +137,41 @@ class ErrorResponse(BaseModel):
 async def lifespan(app: FastAPI):
     """
     Application lifespan manager.
-    
+
     Handles startup and shutdown events.
     """
     global inference_engine, monitor, health_checker
-    
+
     # Startup
     logger.info("Starting LLM Pipeline API...")
-    
+
     try:
         # Initialize components
         monitor = PredictionMonitor()
         health_checker = HealthChecker()
-        
+
         # Initialize inference engine (lazy loading)
         inference_engine = LLMInference(
             task_type="classification",
             enable_monitoring=True,
         )
-        
+
         # Ensure directories exist
         settings.ensure_directories()
-        
+
         logger.info(
             f"API started successfully. Environment: {settings.environment.value}"
         )
-        
+
         yield
-        
+
     finally:
         # Shutdown
         logger.info("Shutting down LLM Pipeline API...")
-        
+
         if inference_engine:
             inference_engine.unload_model()
-        
+
         logger.info("API shutdown complete")
 
 
@@ -205,11 +204,11 @@ app.add_middleware(
 async def log_requests(request: Request, call_next):
     """Log all incoming requests."""
     start_time = time.time()
-    
+
     response = await call_next(request)
-    
+
     latency_ms = (time.time() - start_time) * 1000
-    
+
     if monitor:
         monitor.log_request(
             endpoint=str(request.url.path),
@@ -218,7 +217,7 @@ async def log_requests(request: Request, call_next):
             latency_ms=latency_ms,
             client_ip=request.client.host if request.client else None,
         )
-    
+
     return response
 
 
@@ -227,7 +226,7 @@ async def log_requests(request: Request, call_next):
 async def inference_error_handler(request: Request, exc: InferenceError):
     """Handle inference errors."""
     logger.error(f"Inference error: {exc.message}")
-    
+
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=ErrorResponse(
@@ -270,17 +269,17 @@ async def root():
 async def health_check():
     """
     Check API and system health.
-    
+
     Returns health status of the API and its components.
     """
     checks = None
     overall_status = "healthy"
-    
+
     if health_checker:
         full_check = health_checker.full_health_check(inference_engine)
         checks = full_check
         overall_status = full_check.get("overall_status", "healthy")
-    
+
     return HealthResponse(
         status=overall_status,
         timestamp=datetime.now().isoformat(),
@@ -312,7 +311,7 @@ async def readiness_probe():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Inference engine not initialized",
         )
-    
+
     try:
         # Try to get model info as a readiness check
         info = inference_engine.get_model_info()
@@ -334,7 +333,7 @@ async def readiness_probe():
 async def predict(request: Request, body: PredictRequest):
     """
     Make a prediction for a single text input.
-    
+
     Supports both classification and generation tasks based on the loaded model.
     """
     if inference_engine is None:
@@ -342,20 +341,20 @@ async def predict(request: Request, body: PredictRequest):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Inference engine not available",
         )
-    
+
     # Build kwargs for generation
     gen_kwargs = {}
     if body.max_new_tokens is not None:
         gen_kwargs["max_new_tokens"] = body.max_new_tokens
     if body.temperature is not None:
         gen_kwargs["temperature"] = body.temperature
-    
+
     result = inference_engine.predict(
         text=body.text,
         return_all_scores=body.return_all_scores,
         **gen_kwargs,
     )
-    
+
     return PredictResponse(
         input_text=result.input_text,
         output=result.output,
@@ -374,7 +373,7 @@ async def predict(request: Request, body: PredictRequest):
 async def predict_batch(request: Request, body: BatchPredictRequest):
     """
     Make predictions for multiple text inputs.
-    
+
     Limited to 100 texts per request.
     """
     if inference_engine is None:
@@ -382,16 +381,16 @@ async def predict_batch(request: Request, body: BatchPredictRequest):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Inference engine not available",
         )
-    
+
     start_time = time.time()
-    
+
     results = inference_engine.predict_batch(
         texts=body.texts,
         return_all_scores=body.return_all_scores,
     )
-    
+
     batch_time_ms = (time.time() - start_time) * 1000
-    
+
     predictions = [
         PredictResponse(
             input_text=r.input_text,
@@ -401,12 +400,11 @@ async def predict_batch(request: Request, body: BatchPredictRequest):
         )
         for r in results
     ]
-    
+
     successful = sum(
-        1 for r in results
-        if not (isinstance(r.output, dict) and "error" in r.output)
+        1 for r in results if not (isinstance(r.output, dict) and "error" in r.output)
     )
-    
+
     return BatchPredictResponse(
         predictions=predictions,
         total_count=len(body.texts),
@@ -424,7 +422,7 @@ async def predict_batch(request: Request, body: BatchPredictRequest):
 async def get_model_info():
     """
     Get information about the currently loaded model.
-    
+
     Returns model version, type, device, and configuration.
     """
     if inference_engine is None:
@@ -432,9 +430,9 @@ async def get_model_info():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Inference engine not available",
         )
-    
+
     info = inference_engine.get_model_info()
-    
+
     return ModelInfoResponse(
         model_version=info["model_version"],
         model_path=info["model_path"],
@@ -459,15 +457,15 @@ async def get_model_info():
 async def list_model_versions():
     """
     List all available model versions.
-    
+
     Returns version list, latest version, and metadata.
     """
     version_manager = ModelVersionManager()
-    
+
     versions = version_manager.list_versions()
     latest = version_manager.get_latest_version()
     metadata = version_manager.get_metadata()
-    
+
     return ModelVersionsResponse(
         versions=versions,
         latest_version=latest,
@@ -483,12 +481,12 @@ async def list_model_versions():
 async def get_metrics():
     """
     Get current monitoring metrics.
-    
+
     Returns prediction counts, latency stats, and error rates.
     """
     if monitor is None:
         return {"message": "Monitoring not enabled"}
-    
+
     return monitor.get_metrics()
 
 
@@ -501,13 +499,14 @@ async def reset_metrics():
     """Reset all monitoring metrics to zero."""
     if monitor is None:
         return {"message": "Monitoring not enabled"}
-    
+
     monitor.reset_metrics()
     return {"message": "Metrics reset successfully"}
 
 
 # Development-only endpoints
 if settings.is_development:
+
     @app.post(
         "/model/reload",
         tags=["Development"],
@@ -516,11 +515,11 @@ if settings.is_development:
     async def reload_model():
         """Reload the model from disk (development only)."""
         global inference_engine
-        
+
         if inference_engine:
             inference_engine.unload_model()
             inference_engine._load_model()
-        
+
         return {"message": "Model reloaded successfully"}
 
 
@@ -531,7 +530,7 @@ def create_app() -> FastAPI:
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "src.api:app",
         host=settings.api.host,
