@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: llm-pipeline-api
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - MODEL_BASE_MODEL_NAME=${MODEL_BASE_MODEL_NAME:-distilbert-base-uncased}
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - API_RATE_LIMIT_REQUESTS=${API_RATE_LIMIT_REQUESTS:-100}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+
+  # Development service with hot reload
+  api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: llm-pipeline-api-dev
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      - ENVIRONMENT=development
+      - MODEL_BASE_MODEL_NAME=${MODEL_BASE_MODEL_NAME:-distilbert-base-uncased}
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./logs:/app/logs
+    command: uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload
+    profiles:
+      - dev
+
+networks:
+  default:
+    name: llm-pipeline-network
